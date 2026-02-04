@@ -202,7 +202,7 @@ async function searchThingiverse(query, limit = 10) {
                         return hits.slice(0, limit).map(thing => ({
                             title: thing.name || 'Untitled',
                             creator: thing.creator?.name || thing.creator?.username || 'Unknown',
-                            thumbnail: thing.thumbnail || thing.preview_image || '',
+                            thumbnail: thing.preview_image || thing.thumbnail || '',
                             url: `https://www.thingiverse.com/thing:${thing.id}`,
                             likes: thing.like_count || thing.likes || 0,
                             downloads: thing.download_count || thing.downloads || thing.collect_count || 0,
@@ -240,7 +240,7 @@ async function searchThingiverse(query, limit = 10) {
                     return things.slice(0, limit).map(thing => ({
                         title: thing.name || 'Untitled',
                         creator: thing.creator?.name || thing.creator?.username || 'Unknown',
-                        thumbnail: thing.thumbnail || thing.preview_image || '',
+                        thumbnail: thing.preview_image || thing.thumbnail || '',
                         url: `https://www.thingiverse.com/thing:${thing.id}`,
                         likes: thing.like_count || thing.likes || 0,
                         downloads: thing.download_count || thing.downloads || 0,
@@ -478,7 +478,7 @@ async function fetchPopularThingiverse(limit = 10) {
                     return things.slice(0, limit).map(thing => ({
                         title: thing.name || 'Untitled',
                         creator: thing.creator?.name || thing.creator?.username || 'Unknown',
-                        thumbnail: thing.thumbnail || thing.preview_image || '',
+                        thumbnail: thing.preview_image || thing.thumbnail || '',
                         url: `https://www.thingiverse.com/thing:${thing.id}`,
                         likes: thing.like_count || thing.likes || 0,
                         downloads: thing.download_count || thing.downloads || thing.collect_count || 0,
