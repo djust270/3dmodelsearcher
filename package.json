@@ -1,0 +1,20 @@
+{
+  "name": "3d-model-cross-search",
+  "version": "1.0.0",
+  "description": "Cross-search 3D models across Thingiverse, Printables, Thangs, YouMagine, and MyMiniFactory",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

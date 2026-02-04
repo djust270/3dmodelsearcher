@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Model Cross-Search</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --bg-card-hover: #22222e;
+            --accent-cyan: #00d4ff;
+            --accent-green: #39ff14;
+            --accent-orange: #ff6b35;
+            --accent-purple: #a855f7;
+            --accent-pink: #ff3e9d;
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888a0;
+            --border-color: #2a2a3a;
+            --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.3);
+            --glow-green: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            position: relative;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid var(--accent-cyan);
+            transform: rotate(45deg);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            width: 60%;
+            height: 60%;
+            top: 20%;
+            left: 20%;
+            background: var(--accent-cyan);
+            opacity: 0.3;
+            transform: rotate(45deg);
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: var(--glow-cyan); }
+            50% { box-shadow: 0 0 40px rgba(0, 212, 255, 0.6); }
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .search-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            padding-left: 3rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+        }
+
+        .search-btn {
+            padding: 1rem 2rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-cyan), #00a8cc);
+            border: none;
+            border-radius: 12px;
+            color: var(--bg-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 140px;
+            justify-content: center;
+        }
+
+        .search-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .search-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .search-btn.loading {
+            pointer-events: none;
+        }
+
+        .search-btn .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .toggles-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .toggle-all-btn {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-all-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .site-toggles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .toggle-item {
+            position: relative;
+        }
+
+        .toggle-input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .toggle-label:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .toggle-input:checked + .toggle-label {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .toggle-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-input:checked + .toggle-label .toggle-dot {
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .site-thingiverse .toggle-dot { background: #248bfb; }
+        .site-printables .toggle-dot { background: #fa6831; }
+        .site-thangs .toggle-dot { background: #7c3aed; }
+        .site-youmagine .toggle-dot { background: #22c55e; }
+        .site-myminifactory .toggle-dot { background: #f97316; }
+
+        .toggle-input:checked + .site-thingiverse { border-color: #248bfb; background: rgba(36, 139, 251, 0.1); }
+        .toggle-input:checked + .site-printables { border-color: #fa6831; background: rgba(250, 104, 49, 0.1); }
+        .toggle-input:checked + .site-thangs { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
+        .toggle-input:checked + .site-youmagine { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+        .toggle-input:checked + .site-myminifactory { border-color: #f97316; background: rgba(249, 115, 22, 0.1); }
+
+        .quick-search {
+            margin-top: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .quick-search-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .quick-tag {
+            padding: 0.35rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-tag:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-cyan);
+            color: var(--text-primary);
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            justify-content: center;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        .stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .results-section {
+            animation: fadeInUp 0.6s ease-out 0.4s both;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--accent-green);
+            border-radius: 2px;
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .sort-select {
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .sort-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .view-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn.active {
+            background: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+
+        .site-results {
+            margin-bottom: 2.5rem;
+        }
+
+        .site-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .site-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .badge-thingiverse { background: rgba(36, 139, 251, 0.2); color: #248bfb; }
+        .badge-printables { background: rgba(250, 104, 49, 0.2); color: #fa6831; }
+        .badge-thangs { background: rgba(124, 58, 237, 0.2); color: #7c3aed; }
+        .badge-youmagine { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .badge-myminifactory { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+
+        .site-meta {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        .site-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .site-link {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .site-link:hover {
+            color: var(--accent-cyan);
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .model-grid.list-view {
+            grid-template-columns: 1fr;
+        }
+
+        .model-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            position: relative;
+        }
+
+        .model-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .model-rank {
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            width: 28px;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            z-index: 2;
+        }
+
+        .model-image {
+            width: 100%;
+            height: 180px;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .model-image img.placeholder {
+            object-fit: contain;
+            padding: 1rem;
+            opacity: 0.7;
+        }
+
+        .model-card:hover .model-image img {
+            transform: scale(1.05);
+        }
+
+        .model-info {
+            padding: 1rem;
+        }
+
+        .model-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .model-creator {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .model-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .model-stat {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .list-view .model-card {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .list-view .model-image {
+            width: 200px;
+            height: 140px;
+            flex-shrink: 0;
+        }
+
+        .list-view .model-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .list-view .model-rank {
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .loading-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--accent-orange);
+            background: rgba(255, 107, 53, 0.1);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .search-results-banner {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            color: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-results-banner.active {
+            display: flex;
+        }
+
+        .search-results-banner strong {
+            font-weight: 700;
+        }
+
+        .search-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .results-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+        }
+
+        .clear-search {
+            background: rgba(0, 0, 0, 0.2);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            color: inherit;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+
+        .clear-search:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .notice-banner {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .notice-icon {
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+        }
+
+        .notice-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .notice-text strong {
+            color: var(--accent-cyan);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.75rem; }
+            .search-bar { flex-direction: column; }
+            .search-btn { justify-content: center; }
+            .site-toggles { justify-content: center; }
+            .model-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+            .list-view .model-card { flex-direction: column; }
+            .list-view .model-image { width: 100%; height: 180px; }
+            .stats-bar { flex-wrap: wrap; gap: 1rem; }
+            .section-header { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>3D Model Cross-Search</h1>
+            </div>
+            <p class="tagline">// Search across top 3D printing repositories</p>
+        </header>
+
+        <section class="search-section">
+            <div class="search-bar">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">⌕</span>
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search for 3D models (e.g., 'dragon', 'phone stand', 'gear')..." autocomplete="off">
+                </div>
+                <button class="search-btn" id="searchBtn">
+                    <span class="btn-text">Search All</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </div>
+
+            <div class="quick-search">
+                <span class="quick-search-label">Popular:</span>
+                <span class="quick-tag" data-query="flexi rex">Flexi Rex</span>
+                <span class="quick-tag" data-query="phone stand">Phone Stand</span>
+                <span class="quick-tag" data-query="gridfinity">Gridfinity</span>
+                <span class="quick-tag" data-query="articulated dragon">Dragon</span>
+                <span class="quick-tag" data-query="raspberry pi case">Pi Case</span>
+                <span class="quick-tag" data-query="benchy">Benchy</span>
+                <span class="quick-tag" data-query="dice tower">Dice Tower</span>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <p class="toggles-label">
+                    Active Sources
+                    <button class="toggle-all-btn" id="toggleAllBtn">Toggle All</button>
+                </p>
+                <div class="site-toggles">
+                    <div class="toggle-item">
+                        <input type="checkbox" id="toggle-thingiverse" class="toggle-input" checked>
+                        <label for="toggle-thingiverse" class="toggle-label site-thingiverse">
+                            <span class="toggle-dot"></span>
+                            Thingiverse
+                        </label>
+                    </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="toggle-printables" class="toggle-input" checked>
+                        <label for="toggle-printables" class="toggle-label site-printables">
+                            <span class="toggle-dot"></span>
+                            Printables
+                        </label>
+                    </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="toggle-thangs" class="toggle-input" checked>
+                        <label for="toggle-thangs" class="toggle-label site-thangs">
+                            <span class="toggle-dot"></span>
+                            Thangs
+                        </label>
+                    </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="toggle-youmagine" class="toggle-input" checked>
+                        <label for="toggle-youmagine" class="toggle-label site-youmagine">
+                            <span class="toggle-dot"></span>
+                            YouMagine
+                        </label>
+                    </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="toggle-myminifactory" class="toggle-input" checked>
+                        <label for="toggle-myminifactory" class="toggle-label site-myminifactory">
+                            <span class="toggle-dot"></span>
+                            MyMiniFactory
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-value" id="statSites">5</div>
+                    <div class="stat-label">Sites Active</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="statModels">0</div>
+                    <div class="stat-label">Models Shown</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">Millions</div>
+                    <div class="stat-label">Total Available</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="notice-banner" id="noticeBanner">
+            <span class="notice-icon">ℹ</span>
+            <div class="notice-text">
+                <strong>How it works:</strong> Enter a search term and click "Search All" to fetch results from all enabled sites via the backend API.
+                Results are fetched in real-time and displayed below. Click any model to view it on its original site.
+            </div>
+        </div>
+
+        <div class="search-results-banner" id="searchBanner">
+            <div class="search-info">
+                <span>Results for: <strong id="searchTerm"></strong></span>
+                <span class="results-count" id="resultsCount">0 results</span>
+            </div>
+            <button class="clear-search" id="clearSearch">Clear & Show Popular</button>
+        </div>
+
+        <section class="results-section">
+            <div class="section-header">
+                <h2 class="section-title" id="sectionTitle">Popular Models</h2>
+                <div class="view-controls">
+                    <select class="sort-select" id="sortSelect">
+                        <option value="default">Default Order</option>
+                        <option value="downloads">Most Downloads</option>
+                        <option value="likes">Most Likes</option>
+                        <option value="name">Alphabetical</option>
+                    </select>
+                    <button class="view-btn active" id="gridViewBtn" title="Grid View">▦</button>
+                    <button class="view-btn" id="listViewBtn" title="List View">☰</button>
+                </div>
+            </div>
+
+            <div id="resultsContainer">
+                <!-- Results will be populated here -->
+            </div>
+        </section>
+
+        <footer>
+            <p>Built for the 3D printing community • Powered by Node.js backend</p>
+            <p style="margin-top: 0.5rem;">Data sourced from respective platforms • Running in Docker</p>
+        </footer>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin;
+
+        const sites = {
+            thingiverse: {
+                name: 'Thingiverse',
+                color: '#248bfb',
+                searchUrl: 'https://www.thingiverse.com/search?sort=popular',
+                getSearchUrl: (q) => `https://www.thingiverse.com/search?q=${encodeURIComponent(q)}&type=things&sort=popular`
+            },
+            printables: {
+                name: 'Printables',
+                color: '#fa6831',
+                searchUrl: 'https://www.printables.com/model?o=download_count',
+                getSearchUrl: (q) => `https://www.printables.com/search/models?q=${encodeURIComponent(q)}`
+            },
+            thangs: {
+                name: 'Thangs',
+                color: '#7c3aed',
+                searchUrl: 'https://thangs.com/search?sort=popular',
+                getSearchUrl: (q) => `https://thangs.com/search/${encodeURIComponent(q)}?scope=all`
+            },
+            youmagine: {
+                name: 'YouMagine',
+                color: '#22c55e',
+                searchUrl: 'https://www.youmagine.com/designs?sort=popularity',
+                getSearchUrl: (q) => `https://www.youmagine.com/designs?q=${encodeURIComponent(q)}`
+            },
+            myminifactory: {
+                name: 'MyMiniFactory',
+                color: '#f97316',
+                searchUrl: 'https://www.myminifactory.com/search/?sortBy=popularity',
+                getSearchUrl: (q) => `https://www.myminifactory.com/search/?query=${encodeURIComponent(q)}`
+            }
+        };
+
+        // Current search query for fallback links
+        let currentQuery = '';
+
+        // State
+        let currentView = 'grid';
+        let currentSort = 'default';
+        let currentResults = {};
+        let isSearchMode = false;
+        let isLoading = false;
+
+        // DOM Elements
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const searchBanner = document.getElementById('searchBanner');
+        const searchTermEl = document.getElementById('searchTerm');
+        const resultsCountEl = document.getElementById('resultsCount');
+        const sectionTitle = document.getElementById('sectionTitle');
+        const statSites = document.getElementById('statSites');
+        const statModels = document.getElementById('statModels');
+
+        // Helper: Format numbers
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
+            return num.toString();
+        }
+
+        // Helper: Generate placeholder SVG
+        function generatePlaceholderSVG(siteName, color) {
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="180" viewBox="0 0 280 180">
+                <rect fill="#1a1a24" width="280" height="180"/>
+                <g fill="${color}" opacity="0.2">
+                    <rect x="100" y="40" width="80" height="70" rx="4"/>
+                    <polygon points="140,25 165,50 115,50"/>
+                    <circle cx="140" cy="85" r="20"/>
+                </g>
+                <text x="140" y="145" text-anchor="middle" fill="#8888a0" font-family="monospace" font-size="11">${siteName}</text>
+            </svg>`;
+            return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+        }
+
+        // Get enabled sites
+        function getEnabledSites() {
+            return Object.keys(sites).filter(site =>
+                document.getElementById(`toggle-${site}`).checked
+            );
+        }
+
+        // Update stats
+        function updateStats() {
+            const enabledSites = getEnabledSites();
+            statSites.textContent = enabledSites.length;
+
+            let totalModels = 0;
+            enabledSites.forEach(site => {
+                if (currentResults[site]) {
+                    totalModels += currentResults[site].length;
+                }
+            });
+            statModels.textContent = totalModels;
+            searchBtn.disabled = enabledSites.length === 0;
+        }
+
+        // Sort models
+        function sortModels(models, sortBy) {
+            const sorted = [...models];
+            switch (sortBy) {
+                case 'downloads':
+                    sorted.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+                    break;
+                case 'likes':
+                    sorted.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+                    break;
+                case 'name':
+                    sorted.sort((a, b) => a.title.localeCompare(b.title));
+                    break;
+            }
+            return sorted;
+        }
+
+        // Create model card
+        function createModelCard(model, index, siteKey) {
+            const site = sites[siteKey];
+            const card = document.createElement('a');
+            card.href = model.url;
+            card.target = '_blank';
+            card.rel = 'noopener noreferrer';
+            card.className = 'model-card';
+
+            // Route certain CDN URLs through proxy to bypass hotlink protection
+            let thumbnail = model.thumbnail;
+            if (thumbnail && (
+                thumbnail.includes('cdn.thingiverse.com') ||
+                thumbnail.includes('storage.thangs.com') ||
+                thumbnail.includes('cdn.myminifactory.com')
+            )) {
+                thumbnail = `${API_BASE}/api/image?url=${encodeURIComponent(thumbnail)}`;
+            }
+            thumbnail = thumbnail || generatePlaceholderSVG(site.name, site.color);
+            const isPlaceholder = !model.thumbnail;
+
+            card.innerHTML = `
+                <span class="model-rank">#${index + 1}</span>
+                <div class="model-image">
+                    <img src="${thumbnail}" alt="${model.title}" loading="lazy" class="${isPlaceholder ? 'placeholder' : ''}"
+                         onerror="this.src='${generatePlaceholderSVG(site.name, site.color)}'; this.classList.add('placeholder');">
+                </div>
+                <div class="model-info">
+                    <h3 class="model-title">${model.title}</h3>
+                    <p class="model-creator">by ${model.creator || 'Unknown'}</p>
+                    <div class="model-meta">
+                        <span class="model-stat">♥ ${formatNumber(model.likes || 0)}</span>
+                        <span class="model-stat">↓ ${formatNumber(model.downloads || 0)}</span>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Render results for a site
+        function renderSiteResults(siteKey, models, showFallback = false) {
+            const site = sites[siteKey];
+            const sorted = sortModels(models, currentSort);
+
+            const section = document.createElement('div');
+            section.className = 'site-results';
+            section.id = `results-${siteKey}`;
+
+            const searchLink = isSearchMode && currentQuery
+                ? site.getSearchUrl(currentQuery)
+                : site.searchUrl;
+
+            section.innerHTML = `
+                <div class="site-header">
+                    <span class="site-badge badge-${siteKey}">${site.name}</span>
+                    <div class="site-meta">
+                        <span class="site-count">${sorted.length} models</span>
+                        <a href="${searchLink}" target="_blank" class="site-link">${isSearchMode ? 'Search on site →' : 'View all popular →'}</a>
+                    </div>
+                </div>
+                <div class="model-grid ${currentView === 'list' ? 'list-view' : ''}" id="grid-${siteKey}"></div>
+            `;
+
+            const grid = section.querySelector('.model-grid');
+
+            if (sorted.length > 0) {
+                sorted.forEach((model, index) => {
+                    grid.appendChild(createModelCard(model, index, siteKey));
+                });
+            } else if (showFallback && isSearchMode) {
+                // Show fallback card for sites with no API results
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border-color);">
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">API search not available for ${site.name}</p>
+                        <a href="${searchLink}" target="_blank" style="
+                            display: inline-block;
+                            padding: 0.75rem 1.5rem;
+                            background: ${site.color};
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            transition: opacity 0.2s;
+                        " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                            Search "${currentQuery}" on ${site.name} →
+                        </a>
+                    </div>
+                `;
+            }
+
+            return section;
+        }
+
+        // Render all results
+        function renderResults() {
+            resultsContainer.innerHTML = '';
+
+            const enabledSites = getEnabledSites();
+            let hasAnyResults = false;
+
+            enabledSites.forEach(siteKey => {
+                const models = currentResults[siteKey] || [];
+                if (models.length > 0) {
+                    hasAnyResults = true;
+                }
+                // Always show the site section in search mode, even if no results
+                if (models.length > 0 || isSearchMode) {
+                    resultsContainer.appendChild(renderSiteResults(siteKey, models, true));
+                }
+            });
+
+            // Only show empty state if not in search mode and no results at all
+            if (!hasAnyResults && !isLoading && !isSearchMode) {
+                resultsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📦</div>
+                        <p>No results found. Try a different search term or enable more sites.</p>
+                    </div>
+                `;
+            }
+
+            updateStats();
+        }
+
+        // Show loading state
+        function showLoading() {
+            isLoading = true;
+            resultsContainer.innerHTML = `
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Searching across ${getEnabledSites().length} sites...</p>
+                </div>
+            `;
+        }
+
+        // Set button loading state
+        function setButtonLoading(loading) {
+            const btnText = searchBtn.querySelector('.btn-text');
+            const btnArrow = searchBtn.querySelector('.btn-arrow');
+
+            if (loading) {
+                searchBtn.classList.add('loading');
+                btnText.textContent = 'Searching...';
+                btnArrow.innerHTML = '<span class="spinner"></span>';
+            } else {
+                searchBtn.classList.remove('loading');
+                btnText.textContent = 'Search All';
+                btnArrow.textContent = '→';
+            }
+        }
+
+        // Fetch popular models
+        async function fetchPopular() {
+            const enabledSites = getEnabledSites();
+            if (enabledSites.length === 0) return;
+
+            showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/popular?sites=${enabledSites.join(',')}&limit=10`);
+                const data = await response.json();
+
+                currentResults = data;
+                isSearchMode = false;
+                sectionTitle.textContent = 'Popular Models';
+                searchBanner.classList.remove('active');
+                document.getElementById('noticeBanner').style.display = 'flex';
+
+            } catch (error) {
+                console.error('Failed to fetch popular models:', error);
+                currentResults = {};
+            }
+
+            isLoading = false;
+            renderResults();
+        }
+
+        // Perform search
+        async function performSearch(query) {
+            if (!query.trim()) return;
+
+            const enabledSites = getEnabledSites();
+            if (enabledSites.length === 0) {
+                alert('Please enable at least one site to search.');
+                return;
+            }
+
+            currentQuery = query.trim();
+            showLoading();
+            setButtonLoading(true);
+            searchInput.value = query;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&sites=${enabledSites.join(',')}&limit=10`);
+                const data = await response.json();
+
+                currentResults = data;
+                isSearchMode = true;
+
+                // Update UI
+                searchTermEl.textContent = query;
+                let totalResults = 0;
+                Object.values(data).forEach(results => {
+                    totalResults += results.length;
+                });
+                resultsCountEl.textContent = `${totalResults} results`;
+
+                sectionTitle.textContent = `Search Results`;
+                searchBanner.classList.add('active');
+                document.getElementById('noticeBanner').style.display = 'none';
+
+            } catch (error) {
+                console.error('Search failed:', error);
+                resultsContainer.innerHTML = `
+                    <div class="error-state">
+                        <p>Search failed. Please try again.</p>
+                        <p style="font-size: 0.8rem; margin-top: 0.5rem;">${error.message}</p>
+                    </div>
+                `;
+            }
+
+            isLoading = false;
+            setButtonLoading(false);
+            renderResults();
+        }
+
+        // Clear search and show popular
+        function clearSearch() {
+            searchInput.value = '';
+            currentQuery = '';
+            isSearchMode = false;
+            fetchPopular();
+        }
+
+        // Toggle all sites
+        function toggleAll() {
+            const checkboxes = Object.keys(sites).map(key => document.getElementById(`toggle-${key}`));
+            const allChecked = checkboxes.every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+            handleSiteToggle();
+        }
+
+        // Handle site toggle
+        function handleSiteToggle() {
+            updateStats();
+            if (isSearchMode) {
+                // Re-render with current results but filtered by enabled sites
+                renderResults();
+            } else {
+                fetchPopular();
+            }
+        }
+
+        // Set view mode
+        function setViewMode(mode) {
+            currentView = mode;
+            document.querySelectorAll('.model-grid').forEach(grid => {
+                grid.classList.toggle('list-view', mode === 'list');
+            });
+            document.getElementById('gridViewBtn').classList.toggle('active', mode === 'grid');
+            document.getElementById('listViewBtn').classList.toggle('active', mode === 'list');
+        }
+
+        // Event Listeners
+        searchBtn.addEventListener('click', () => performSearch(searchInput.value));
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch(searchInput.value);
+        });
+        document.getElementById('clearSearch').addEventListener('click', clearSearch);
+        document.getElementById('toggleAllBtn').addEventListener('click', toggleAll);
+        document.getElementById('gridViewBtn').addEventListener('click', () => setViewMode('grid'));
+        document.getElementById('listViewBtn').addEventListener('click', () => setViewMode('list'));
+
+        document.getElementById('sortSelect').addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            renderResults();
+        });
+
+        // Quick search tags
+        document.querySelectorAll('.quick-tag').forEach(tag => {
+            tag.addEventListener('click', () => performSearch(tag.dataset.query));
+        });
+
+        // Site toggle listeners
+        Object.keys(sites).forEach(siteKey => {
+            document.getElementById(`toggle-${siteKey}`).addEventListener('change', handleSiteToggle);
+        });
+
+        // Keyboard shortcut (Ctrl/Cmd + K)
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+
+        // Initialize
+        fetchPopular();
+    </script>
+</body>
+</html>
