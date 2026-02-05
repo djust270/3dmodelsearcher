@@ -52,16 +52,17 @@ const popularCache = {
 };
 
 // ==================== PRINTABLES ====================
-async function searchPrintables(query, limit = 10) {
+async function searchPrintables(query, limit = 10, page = 1) {
     try {
         // Printables GraphQL API
         const graphqlUrl = 'https://api.printables.com/graphql/';
+        const offset = (page - 1) * limit;
 
         // Search query - using searchPrints2
         const searchQuery = {
             query: `
-                query SearchPrints($query: String!, $limit: Int) {
-                    searchPrints2(query: $query, limit: $limit) {
+                query SearchPrints($query: String!, $limit: Int, $offset: Int) {
+                    searchPrints2(query: $query, limit: $limit, offset: $offset) {
                         items {
                             id
                             name
@@ -80,7 +81,8 @@ async function searchPrintables(query, limit = 10) {
             `,
             variables: {
                 query: query,
-                limit: limit
+                limit: limit,
+                offset: offset
             }
         };
 
@@ -119,10 +121,10 @@ async function searchPrintables(query, limit = 10) {
 }
 
 // ==================== THANGS ====================
-async function searchThangs(query, limit = 10) {
+async function searchThangs(query, limit = 10, page = 1) {
     try {
         // Thangs has a public search API
-        const searchUrl = `https://thangs.com/api/models/search?q=${encodeURIComponent(query)}&limit=${limit}&sort=popular`;
+        const searchUrl = `https://thangs.com/api/models/search?q=${encodeURIComponent(query)}&limit=${limit}&page=${page}&sort=popular`;
 
         const response = await safeFetch(searchUrl, {
             headers: {
@@ -153,7 +155,7 @@ async function searchThangs(query, limit = 10) {
         }
 
         // Fallback: Try alternate API endpoint
-        const altUrl = `https://thangs.com/api/search?query=${encodeURIComponent(query)}&pageSize=${limit}`;
+        const altUrl = `https://thangs.com/api/search?query=${encodeURIComponent(query)}&pageSize=${limit}&page=${page}`;
         const altResponse = await safeFetch(altUrl, {
             headers: { 'Accept': 'application/json' }
         });
@@ -180,12 +182,12 @@ async function searchThangs(query, limit = 10) {
 }
 
 // ==================== THINGIVERSE ====================
-async function searchThingiverse(query, limit = 10) {
+async function searchThingiverse(query, limit = 10, page = 1) {
     try {
         // If API key is available, use the official API
         if (THINGIVERSE_API_KEY) {
             try {
-                const apiUrl = `https://api.thingiverse.com/search/${encodeURIComponent(query)}?per_page=${limit}&sort=popular`;
+                const apiUrl = `https://api.thingiverse.com/search/${encodeURIComponent(query)}?per_page=${limit}&page=${page}&sort=relevant`;
                 const apiResponse = await fetch(apiUrl, {
                     headers: {
                         'Authorization': `Bearer ${THINGIVERSE_API_KEY}`,
@@ -221,7 +223,7 @@ async function searchThingiverse(query, limit = 10) {
         }
 
         // Fallback: Try scraping the search results page
-        const searchUrl = `https://www.thingiverse.com/search?q=${encodeURIComponent(query)}&type=things&sort=popular`;
+        const searchUrl = `https://www.thingiverse.com/search?q=${encodeURIComponent(query)}&type=things&sort=relevant&page=${page}`;
 
         const response = await safeFetch(searchUrl);
         const html = await response.text();
@@ -291,10 +293,10 @@ async function searchThingiverse(query, limit = 10) {
 }
 
 // ==================== MYMINIFACTORY ====================
-async function searchMyMiniFactory(query, limit = 10) {
+async function searchMyMiniFactory(query, limit = 10, page = 1) {
     try {
         // Try API endpoint first
-        const apiUrl = `https://www.myminifactory.com/api/v2/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+        const apiUrl = `https://www.myminifactory.com/api/v2/search?q=${encodeURIComponent(query)}&limit=${limit}&page=${page}`;
 
         const response = await safeFetch(apiUrl, {
             headers: {
@@ -325,7 +327,7 @@ async function searchMyMiniFactory(query, limit = 10) {
         }
 
         // Fallback: scrape search page
-        const searchUrl = `https://www.myminifactory.com/search/?query=${encodeURIComponent(query)}`;
+        const searchUrl = `https://www.myminifactory.com/search/?query=${encodeURIComponent(query)}&page=${page}`;
         const htmlResponse = await safeFetch(searchUrl);
         const html = await htmlResponse.text();
         const $ = cheerio.load(html);
@@ -364,10 +366,10 @@ async function searchMyMiniFactory(query, limit = 10) {
 }
 
 // ==================== YOUMAGINE ====================
-async function searchYouMagine(query, limit = 10) {
+async function searchYouMagine(query, limit = 10, page = 1) {
     try {
         // Use youmagine.com without www (www redirects)
-        const searchUrl = `https://youmagine.com/designs?q=${encodeURIComponent(query)}`;
+        const searchUrl = `https://youmagine.com/designs?q=${encodeURIComponent(query)}&page=${page}`;
         const response = await safeFetch(searchUrl, { redirect: 'follow' });
         const html = await response.text();
         const $ = cheerio.load(html);
@@ -707,7 +709,7 @@ app.get('/api/image', async (req, res) => {
 
 // Search all sites
 app.get('/api/search', async (req, res) => {
-    const { q, sites: siteParam, limit = 10 } = req.query;
+    const { q, sites: siteParam, limit = 10, page = 1 } = req.query;
 
     if (!q) {
         return res.status(400).json({ error: 'Query parameter "q" is required' });
@@ -715,6 +717,7 @@ app.get('/api/search', async (req, res) => {
 
     const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'youmagine', 'myminifactory'];
     const searchLimit = Math.min(parseInt(limit) || 10, 20);
+    const searchPage = Math.max(parseInt(page) || 1, 1);
 
     const searchFunctions = {
         thingiverse: searchThingiverse,
@@ -724,14 +727,14 @@ app.get('/api/search', async (req, res) => {
         myminifactory: searchMyMiniFactory
     };
 
-    console.log(`Searching for "${q}" on sites: ${enabledSites.join(', ')}`);
+    console.log(`Searching for "${q}" on sites: ${enabledSites.join(', ')} (page ${searchPage})`);
 
     try {
         const searchPromises = enabledSites
             .filter(site => searchFunctions[site])
             .map(async site => {
                 try {
-                    const results = await searchFunctions[site](q, searchLimit);
+                    const results = await searchFunctions[site](q, searchLimit, searchPage);
                     console.log(`${site}: found ${results.length} results`);
                     return { site, results };
                 } catch (err) {
@@ -742,9 +745,13 @@ app.get('/api/search', async (req, res) => {
 
         const results = await Promise.all(searchPromises);
 
-        const response = {};
+        const response = {
+            page: searchPage,
+            limit: searchLimit,
+            results: {}
+        };
         results.forEach(result => {
-            response[result.site] = result.results;
+            response.results[result.site] = result.results;
         });
 
         res.json(response);
@@ -757,7 +764,7 @@ app.get('/api/search', async (req, res) => {
 // Search individual site
 app.get('/api/search/:site', async (req, res) => {
     const { site } = req.params;
-    const { q, limit = 10 } = req.query;
+    const { q, limit = 10, page = 1 } = req.query;
 
     if (!q) {
         return res.status(400).json({ error: 'Query parameter "q" is required' });
@@ -777,8 +784,9 @@ app.get('/api/search/:site', async (req, res) => {
 
     try {
         const searchLimit = Math.min(parseInt(limit) || 10, 20);
-        const results = await searchFunctions[site](q, searchLimit);
-        res.json({ site, results });
+        const searchPage = Math.max(parseInt(page) || 1, 1);
+        const results = await searchFunctions[site](q, searchLimit, searchPage);
+        res.json({ site, page: searchPage, results });
     } catch (error) {
         console.error(`${site} search error:`, error);
         res.status(500).json({ error: 'Search failed', message: error.message });
@@ -868,8 +876,8 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 3D Model Cross-Search server running on http://localhost:${PORT}`);
     console.log(`📦 API endpoints:`);
-    console.log(`   GET /api/search?q=<query>&sites=<site1,site2>&limit=<n>`);
-    console.log(`   GET /api/search/:site?q=<query>&limit=<n>`);
+    console.log(`   GET /api/search?q=<query>&sites=<site1,site2>&limit=<n>&page=<n>`);
+    console.log(`   GET /api/search/:site?q=<query>&limit=<n>&page=<n>`);
     console.log(`   GET /api/popular?sites=<site1,site2>&limit=<n>`);
     console.log(`   GET /api/search-urls?q=<query>`);
     console.log(`   GET /api/health`);

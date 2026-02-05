@@ -769,6 +769,65 @@
             text-decoration: underline;
         }
 
+        .site-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .site-pagination-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .site-pagination-btn:hover:not(:disabled) {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-cyan);
+        }
+
+        .site-pagination-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .site-pagination-btn.loading {
+            pointer-events: none;
+        }
+
+        .site-pagination-btn .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .site-page-info {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-card);
+            border-radius: 4px;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 1rem; }
             h1 { font-size: 1.75rem; }
@@ -780,6 +839,7 @@
             .list-view .model-image { width: 100%; height: 180px; }
             .stats-bar { flex-wrap: wrap; gap: 1rem; }
             .section-header { flex-direction: column; align-items: flex-start; }
+            .site-pagination { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -966,6 +1026,15 @@
         let currentResults = {};
         let isSearchMode = false;
         let isLoading = false;
+        // Track page per site
+        let sitePages = {
+            thingiverse: 1,
+            printables: 1,
+            thangs: 1,
+            youmagine: 1,
+            myminifactory: 1
+        };
+        let siteLoading = {};
 
         // DOM Elements
         const searchInput = document.getElementById('searchInput');
@@ -1082,6 +1151,7 @@
         function renderSiteResults(siteKey, models, showFallback = false) {
             const site = sites[siteKey];
             const sorted = sortModels(models, currentSort);
+            const currentSitePage = sitePages[siteKey] || 1;
 
             const section = document.createElement('div');
             section.className = 'site-results';
@@ -1095,11 +1165,22 @@
                 <div class="site-header">
                     <span class="site-badge badge-${siteKey}">${site.name}</span>
                     <div class="site-meta">
-                        <span class="site-count">${sorted.length} models</span>
+                        <span class="site-count" id="count-${siteKey}">${sorted.length} models</span>
                         <a href="${searchLink}" target="_blank" class="site-link">${isSearchMode ? 'Search on site →' : 'View all popular →'}</a>
                     </div>
                 </div>
                 <div class="model-grid ${currentView === 'list' ? 'list-view' : ''}" id="grid-${siteKey}"></div>
+                ${isSearchMode ? `
+                <div class="site-pagination" id="pagination-${siteKey}">
+                    <button class="site-pagination-btn" id="prev-${siteKey}" ${currentSitePage <= 1 ? 'disabled' : ''}>
+                        ← Prev
+                    </button>
+                    <span class="site-page-info" id="page-info-${siteKey}">Page ${currentSitePage}</span>
+                    <button class="site-pagination-btn" id="next-${siteKey}">
+                        Next →
+                    </button>
+                </div>
+                ` : ''}
             `;
 
             const grid = section.querySelector('.model-grid');
@@ -1112,7 +1193,7 @@
                 // Show fallback card for sites with no API results
                 grid.innerHTML = `
                     <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border-color);">
-                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">API search not available for ${site.name}</p>
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">No results on page ${currentSitePage}</p>
                         <a href="${searchLink}" target="_blank" style="
                             display: inline-block;
                             padding: 0.75rem 1.5rem;
@@ -1128,6 +1209,18 @@
                     </div>
                 `;
             }
+
+            // Add pagination event listeners after appending to DOM
+            setTimeout(() => {
+                const prevBtn = document.getElementById(`prev-${siteKey}`);
+                const nextBtn = document.getElementById(`next-${siteKey}`);
+                if (prevBtn) {
+                    prevBtn.addEventListener('click', () => loadSitePage(siteKey, currentSitePage - 1));
+                }
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', () => loadSitePage(siteKey, currentSitePage + 1));
+                }
+            }, 0);
 
             return section;
         }
@@ -1195,6 +1288,9 @@
             const enabledSites = getEnabledSites();
             if (enabledSites.length === 0) return;
 
+            // Reset all site pages
+            Object.keys(sitePages).forEach(site => sitePages[site] = 1);
+
             showLoading();
 
             try {
@@ -1227,22 +1323,27 @@
             }
 
             currentQuery = query.trim();
+            // Reset all site pages to 1 for new search
+            Object.keys(sitePages).forEach(site => sitePages[site] = 1);
+
             showLoading();
             setButtonLoading(true);
             searchInput.value = query;
 
             try {
-                const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&sites=${enabledSites.join(',')}&limit=10`);
+                const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&sites=${enabledSites.join(',')}&limit=10&page=1`);
                 const data = await response.json();
 
-                currentResults = data;
+                currentResults = data.results || data;
                 isSearchMode = true;
 
                 // Update UI
                 searchTermEl.textContent = query;
                 let totalResults = 0;
-                Object.values(data).forEach(results => {
-                    totalResults += results.length;
+                Object.values(currentResults).forEach(results => {
+                    if (Array.isArray(results)) {
+                        totalResults += results.length;
+                    }
                 });
                 resultsCountEl.textContent = `${totalResults} results`;
 
@@ -1265,10 +1366,55 @@
             renderResults();
         }
 
+        // Load a specific page for a single site
+        async function loadSitePage(siteKey, page) {
+            if (page < 1 || !currentQuery || siteLoading[siteKey]) return;
+
+            siteLoading[siteKey] = true;
+            const prevBtn = document.getElementById(`prev-${siteKey}`);
+            const nextBtn = document.getElementById(`next-${siteKey}`);
+            const pageInfo = document.getElementById(`page-info-${siteKey}`);
+
+            // Show loading state on buttons
+            if (nextBtn && page > sitePages[siteKey]) {
+                nextBtn.innerHTML = '<span class="spinner"></span> Loading';
+                nextBtn.classList.add('loading');
+            }
+            if (prevBtn && page < sitePages[siteKey]) {
+                prevBtn.innerHTML = '<span class="spinner"></span> Loading';
+                prevBtn.classList.add('loading');
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search/${siteKey}?q=${encodeURIComponent(currentQuery)}&limit=10&page=${page}`);
+                const data = await response.json();
+
+                // Update results for this site
+                currentResults[siteKey] = data.results || [];
+                sitePages[siteKey] = page;
+
+                // Re-render just this site's section
+                const oldSection = document.getElementById(`results-${siteKey}`);
+                if (oldSection) {
+                    const newSection = renderSiteResults(siteKey, currentResults[siteKey], true);
+                    oldSection.replaceWith(newSection);
+                }
+
+                // Update total count
+                updateStats();
+
+            } catch (error) {
+                console.error(`Failed to load page ${page} for ${siteKey}:`, error);
+            }
+
+            siteLoading[siteKey] = false;
+        }
+
         // Clear search and show popular
         function clearSearch() {
             searchInput.value = '';
             currentQuery = '';
+            Object.keys(sitePages).forEach(site => sitePages[site] = 1);
             isSearchMode = false;
             fetchPopular();
         }
