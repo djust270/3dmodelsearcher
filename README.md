@@ -4,7 +4,7 @@ A web application that searches for 3D printable models across multiple popular 
 
 ## Features
 
-- **Unified Search** - Search Thingiverse, Printables, Thangs, MyMiniFactory, and YouMagine from one interface
+- **Unified Search** - Search Thingiverse, Printables, Thangs, MyMiniFactory, YouMagine, and Creality Cloud from one interface
 - **Popular Models** - Browse trending models from each source
 - **Real-time Results** - Results stream in as each source responds
 - **Image Proxy** - Built-in proxy to handle CDN restrictions
@@ -19,6 +19,7 @@ A web application that searches for 3D printable models across multiple popular 
 | Thangs | ⚠️ | ✅ | Cloudflare protected (fallback data) |
 | MyMiniFactory | ⚠️ | ✅ | Cloudflare protected (fallback data) |
 | YouMagine | ✅ | ✅ | Web scraping |
+| Creality Cloud | ✅ | ✅ | REST API |
 
 ## Quick Start
 
