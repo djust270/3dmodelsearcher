@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
+const crypto = require('crypto');
 const path = require('path');
 
 const app = express();
@@ -365,6 +366,68 @@ async function searchMyMiniFactory(query, limit = 10, page = 1) {
     }
 }
 
+// ==================== CREALITY CLOUD ====================
+async function searchCrealityCloud(query, limit = 10, page = 1) {
+    try {
+        const response = await safeFetch('https://www.crealitycloud.com/api/cxy/search/model', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                '__cxy_app_ch_': 'Chrome 144.0.0.0',
+                '__cxy_app_id_': 'creality_model',
+                '__cxy_app_ver_': '6.0.0',
+                '__cxy_brand_': 'creality',
+                '__cxy_duid_': 'uuid-' + crypto.randomUUID(),
+                '__cxy_jwtoken_': '',
+                '__cxy_os_lang_': '0',
+                '__cxy_os_ver_': 'Linux x86_64',
+                '__cxy_platform_': '2',
+                '__cxy_requestid_': crypto.randomUUID(),
+                '__cxy_timezone_': '-18000',
+                '__cxy_token_': '',
+                '__cxy_uid_': '',
+                '_x_cxy_ehrtoken_': '',
+                'Origin': 'https://www.crealitycloud.com',
+                'Referer': 'https://www.crealitycloud.com/'
+            },
+            body: JSON.stringify({
+                page: page,
+                pageSize: limit,
+                sortType: 11,
+                isPay: 0,
+                hasCfgFile: 0,
+                isVip: 0,
+                isExclusive: 0,
+                multiMarkType: 0,
+                hasPromo: 0,
+                promoType: 0,
+                keyword: query
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.code === 0 && data.result?.list) {
+                return data.result.list.map(item => ({
+                    title: item.groupName || 'Untitled',
+                    creator: item.userInfo?.nickName || 'Unknown',
+                    thumbnail: item.covers?.[0]?.url || '',
+                    url: `https://www.crealitycloud.com/model-detail/${item.id}`,
+                    likes: item.likeCount || 0,
+                    downloads: item.downloadCount || 0,
+                    source: 'crealitycloud'
+                }));
+            }
+        }
+
+        return [];
+    } catch (error) {
+        console.error('Creality Cloud search error:', error.message);
+        return [];
+    }
+}
+
 // ==================== YOUMAGINE ====================
 async function searchYouMagine(query, limit = 10, page = 1) {
     try {
@@ -576,6 +639,67 @@ async function fetchPopularMyMiniFactory(limit = 10) {
     return fallbackPopularModels.myminifactory.slice(0, limit);
 }
 
+async function fetchPopularCrealityCloud(limit = 10) {
+    try {
+        const response = await safeFetch('https://www.crealitycloud.com/api/cxy/v3/model/listTrend', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                '__cxy_app_ch_': 'Chrome 144.0.0.0',
+                '__cxy_app_id_': 'creality_model',
+                '__cxy_app_ver_': '6.0.0',
+                '__cxy_brand_': 'creality',
+                '__cxy_duid_': 'uuid-' + crypto.randomUUID(),
+                '__cxy_jwtoken_': '',
+                '__cxy_os_lang_': '0',
+                '__cxy_os_ver_': 'Linux x86_64',
+                '__cxy_platform_': '2',
+                '__cxy_requestid_': crypto.randomUUID(),
+                '__cxy_timezone_': '-18000',
+                '__cxy_token_': '',
+                '__cxy_uid_': '',
+                '_x_cxy_ehrtoken_': '',
+                'Origin': 'https://www.crealitycloud.com',
+                'Referer': 'https://www.crealitycloud.com/'
+            },
+            body: JSON.stringify({
+                page: 1,
+                pageSize: limit,
+                trendType: 3,
+                filterType: 10,
+                isPay: 0,
+                isExclusive: 0,
+                promoType: 0,
+                isVip: 0,
+                multiMark: 0,
+                hasCfgFile: 0,
+                hasCubeMeModel: 1
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.code === 0 && data.result?.list) {
+                return data.result.list.map(item => ({
+                    title: item.groupName || 'Untitled',
+                    creator: item.userInfo?.nickName || 'Unknown',
+                    thumbnail: item.covers?.[0]?.url || '',
+                    url: `https://www.crealitycloud.com/model-detail/${item.id}`,
+                    likes: item.likeCount || 0,
+                    downloads: item.downloadCount || 0,
+                    source: 'crealitycloud'
+                }));
+            }
+        }
+
+        return [];
+    } catch (error) {
+        console.error('Creality Cloud popular fetch error:', error.message);
+        return [];
+    }
+}
+
 async function fetchPopularYouMagine(limit = 10) {
     try {
         // Scrape main designs page (shows featured/recent without query)
@@ -663,6 +787,8 @@ app.get('/api/image', async (req, res) => {
             referer = 'https://thangs.com/';
         } else if (imageUrl.includes('myminifactory.com')) {
             referer = 'https://www.myminifactory.com/';
+        } else if (imageUrl.includes('creality.com')) {
+            referer = 'https://www.crealitycloud.com/';
         }
 
         const response = await fetch(imageUrl, {
@@ -715,7 +841,7 @@ app.get('/api/search', async (req, res) => {
         return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
-    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'youmagine', 'myminifactory'];
+    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'youmagine', 'myminifactory', 'crealitycloud'];
     const searchLimit = Math.min(parseInt(limit) || 10, 20);
     const searchPage = Math.max(parseInt(page) || 1, 1);
 
@@ -724,7 +850,8 @@ app.get('/api/search', async (req, res) => {
         printables: searchPrintables,
         thangs: searchThangs,
         youmagine: searchYouMagine,
-        myminifactory: searchMyMiniFactory
+        myminifactory: searchMyMiniFactory,
+        crealitycloud: searchCrealityCloud
     };
 
     console.log(`Searching for "${q}" on sites: ${enabledSites.join(', ')} (page ${searchPage})`);
@@ -775,7 +902,8 @@ app.get('/api/search/:site', async (req, res) => {
         printables: searchPrintables,
         thangs: searchThangs,
         youmagine: searchYouMagine,
-        myminifactory: searchMyMiniFactory
+        myminifactory: searchMyMiniFactory,
+        crealitycloud: searchCrealityCloud
     };
 
     if (!searchFunctions[site]) {
@@ -796,7 +924,7 @@ app.get('/api/search/:site', async (req, res) => {
 // Get popular models (dynamically fetched)
 app.get('/api/popular', async (req, res) => {
     const { sites: siteParam, limit = 10 } = req.query;
-    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'youmagine', 'myminifactory'];
+    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'youmagine', 'myminifactory', 'crealitycloud'];
     const searchLimit = Math.min(parseInt(limit) || 10, 20);
 
     // Check cache
@@ -813,7 +941,8 @@ app.get('/api/popular', async (req, res) => {
         printables: fetchPopularPrintables,
         thangs: fetchPopularThangs,
         youmagine: fetchPopularYouMagine,
-        myminifactory: fetchPopularMyMiniFactory
+        myminifactory: fetchPopularMyMiniFactory,
+        crealitycloud: fetchPopularCrealityCloud
     };
 
     // Fetch in parallel
@@ -856,7 +985,8 @@ app.get('/api/search-urls', (req, res) => {
         printables: `https://www.printables.com/search/models?q=${encodeURIComponent(q)}`,
         thangs: `https://thangs.com/search/${encodeURIComponent(q)}?scope=all`,
         youmagine: `https://www.youmagine.com/designs?q=${encodeURIComponent(q)}`,
-        myminifactory: `https://www.myminifactory.com/search/?query=${encodeURIComponent(q)}`
+        myminifactory: `https://www.myminifactory.com/search/?query=${encodeURIComponent(q)}`,
+        crealitycloud: `https://www.crealitycloud.com/search/${encodeURIComponent(q)}`
     };
 
     res.json(searchUrls);

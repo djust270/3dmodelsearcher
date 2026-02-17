@@ -314,12 +314,14 @@
         .site-thangs .toggle-dot { background: #7c3aed; }
         .site-youmagine .toggle-dot { background: #22c55e; }
         .site-myminifactory .toggle-dot { background: #f97316; }
+        .site-crealitycloud .toggle-dot { background: #00b4d8; }
 
         .toggle-input:checked + .site-thingiverse { border-color: #248bfb; background: rgba(36, 139, 251, 0.1); }
         .toggle-input:checked + .site-printables { border-color: #fa6831; background: rgba(250, 104, 49, 0.1); }
         .toggle-input:checked + .site-thangs { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
         .toggle-input:checked + .site-youmagine { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
         .toggle-input:checked + .site-myminifactory { border-color: #f97316; background: rgba(249, 115, 22, 0.1); }
+        .toggle-input:checked + .site-crealitycloud { border-color: #00b4d8; background: rgba(0, 180, 216, 0.1); }
 
         .quick-search {
             margin-top: 1rem;
@@ -471,6 +473,7 @@
         .badge-thangs { background: rgba(124, 58, 237, 0.2); color: #7c3aed; }
         .badge-youmagine { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
         .badge-myminifactory { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+        .badge-crealitycloud { background: rgba(0, 180, 216, 0.2); color: #00b4d8; }
 
         .site-meta {
             display: flex;
@@ -919,12 +922,19 @@
                             MyMiniFactory
                         </label>
                     </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="toggle-crealitycloud" class="toggle-input" checked>
+                        <label for="toggle-crealitycloud" class="toggle-label site-crealitycloud">
+                            <span class="toggle-dot"></span>
+                            Creality Cloud
+                        </label>
+                    </div>
                 </div>
             </div>
 
             <div class="stats-bar">
                 <div class="stat-item">
-                    <div class="stat-value" id="statSites">5</div>
+                    <div class="stat-value" id="statSites">6</div>
                     <div class="stat-label">Sites Active</div>
                 </div>
                 <div class="stat-item">
@@ -1014,6 +1024,12 @@
                 color: '#f97316',
                 searchUrl: 'https://www.myminifactory.com/search/?sortBy=popularity',
                 getSearchUrl: (q) => `https://www.myminifactory.com/search/?query=${encodeURIComponent(q)}`
+            },
+            crealitycloud: {
+                name: 'Creality Cloud',
+                color: '#00b4d8',
+                searchUrl: 'https://www.crealitycloud.com/search',
+                getSearchUrl: (q) => `https://www.crealitycloud.com/search/${encodeURIComponent(q)}`
             }
         };
 
@@ -1032,7 +1048,8 @@
             printables: 1,
             thangs: 1,
             youmagine: 1,
-            myminifactory: 1
+            myminifactory: 1,
+            crealitycloud: 1
         };
         let siteLoading = {};
 
@@ -1121,7 +1138,9 @@
             if (thumbnail && (
                 thumbnail.includes('cdn.thingiverse.com') ||
                 thumbnail.includes('storage.thangs.com') ||
-                thumbnail.includes('cdn.myminifactory.com')
+                thumbnail.includes('cdn.myminifactory.com') ||
+                thumbnail.includes('cdn.creality.com') ||
+                thumbnail.includes('pic2-cdn.creality.com')
             )) {
                 thumbnail = `${API_BASE}/api/image?url=${encodeURIComponent(thumbnail)}`;
             }
