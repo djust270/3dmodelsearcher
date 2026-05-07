@@ -293,79 +293,6 @@ async function searchThingiverse(query, limit = 10, page = 1) {
     }
 }
 
-// ==================== MYMINIFACTORY ====================
-async function searchMyMiniFactory(query, limit = 10, page = 1) {
-    try {
-        // Try API endpoint first
-        const apiUrl = `https://www.myminifactory.com/api/v2/search?q=${encodeURIComponent(query)}&limit=${limit}&page=${page}`;
-
-        const response = await safeFetch(apiUrl, {
-            headers: {
-                'Accept': 'application/json',
-            }
-        });
-
-        if (response.ok) {
-            const text = await response.text();
-            try {
-                const data = JSON.parse(text);
-                const items = data?.items || data?.objects || data?.results || [];
-
-                if (Array.isArray(items) && items.length > 0) {
-                    return items.slice(0, limit).map(item => ({
-                        title: item.name || item.title || 'Untitled',
-                        creator: item.designer?.name || item.designer?.username || item.user?.name || 'Unknown',
-                        thumbnail: item.images?.[0]?.thumbnail?.url || item.images?.[0]?.url || item.thumbnail || '',
-                        url: item.url || `https://www.myminifactory.com/object/${item.slug || item.id}`,
-                        likes: item.likes || 0,
-                        downloads: item.downloads || item.views || 0,
-                        source: 'myminifactory'
-                    }));
-                }
-            } catch (e) {
-                // Not JSON, try scraping
-            }
-        }
-
-        // Fallback: scrape search page
-        const searchUrl = `https://www.myminifactory.com/search/?query=${encodeURIComponent(query)}&page=${page}`;
-        const htmlResponse = await safeFetch(searchUrl);
-        const html = await htmlResponse.text();
-        const $ = cheerio.load(html);
-
-        const results = [];
-        $('a[href*="/object/"]').each((i, el) => {
-            if (results.length >= limit) return false;
-
-            const $el = $(el);
-            const href = $el.attr('href');
-            const $card = $el.closest('[class*="card"], [class*="item"], .col');
-
-            const title = $card.find('[class*="title"], h3, h4, h5').text().trim() ||
-                         $el.attr('title') || '';
-            const img = $card.find('img').first();
-            const thumbnail = img.attr('src') || img.attr('data-src') || '';
-
-            if (href && title && !results.find(r => r.url.includes(href))) {
-                results.push({
-                    title,
-                    creator: 'Unknown',
-                    thumbnail,
-                    url: href.startsWith('http') ? href : `https://www.myminifactory.com${href}`,
-                    likes: 0,
-                    downloads: 0,
-                    source: 'myminifactory'
-                });
-            }
-        });
-
-        return results;
-    } catch (error) {
-        console.error('MyMiniFactory search error:', error.message);
-        return [];
-    }
-}
-
 // ==================== CREALITY CLOUD ====================
 async function searchCrealityCloud(query, limit = 10, page = 1) {
     try {
@@ -428,57 +355,6 @@ async function searchCrealityCloud(query, limit = 10, page = 1) {
     }
 }
 
-// ==================== YOUMAGINE ====================
-async function searchYouMagine(query, limit = 10, page = 1) {
-    try {
-        // Use youmagine.com without www (www redirects)
-        const searchUrl = `https://youmagine.com/designs?q=${encodeURIComponent(query)}&page=${page}`;
-        const response = await safeFetch(searchUrl, { redirect: 'follow' });
-        const html = await response.text();
-        const $ = cheerio.load(html);
-
-        const results = [];
-        const seen = new Set();
-
-        // Find all model card images (they have the title in alt attribute)
-        $('img.object-cover[alt]').each((i, el) => {
-            if (results.length >= limit) return false;
-
-            const $img = $(el);
-            const alt = $img.attr('alt') || '';
-            const src = $img.attr('src') || '';
-
-            // Skip small images (avatars, icons) - model images have w-full h-full
-            if (!$img.hasClass('w-full') || !src || alt === 'YouMagine') return;
-
-            // Find the parent link
-            const $link = $img.closest('a[href*="/designs/"]');
-            const href = $link.attr('href');
-
-            if (href && !href.endsWith('/designs/') && !seen.has(href)) {
-                seen.add(href);
-                const thumbnail = src.startsWith('http') ? src : `https://youmagine.com${src}`;
-                const url = href.startsWith('http') ? href : `https://youmagine.com${href}`;
-
-                results.push({
-                    title: alt || 'Untitled',
-                    creator: 'Unknown',
-                    thumbnail,
-                    url,
-                    likes: 0,
-                    downloads: 0,
-                    source: 'youmagine'
-                });
-            }
-        });
-
-        return results;
-    } catch (error) {
-        console.error('YouMagine search error:', error.message);
-        return [];
-    }
-}
-
 // ==================== FETCH POPULAR FUNCTIONS ====================
 
 // Curated fallback data for sources that have bot protection
@@ -508,18 +384,6 @@ const fallbackPopularModels = {
         { title: 'Phone Stand', creator: 'Various', thumbnail: '', url: 'https://thangs.com/search/phone%20stand', likes: 13000, downloads: 250000, source: 'thangs' },
         { title: 'Geometric Vase', creator: 'Various', thumbnail: '', url: 'https://thangs.com/search/geometric%20vase', likes: 12000, downloads: 230000, source: 'thangs' }
     ],
-    myminifactory: [
-        { title: 'The Dragon', creator: 'Fotis Mint', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-the-dragon-100769', likes: 42000, downloads: 810000, source: 'myminifactory' },
-        { title: 'Cthulhu', creator: 'Fotis Mint', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-cthulhu-30203', likes: 35000, downloads: 680000, source: 'myminifactory' },
-        { title: 'Dice Guardian', creator: 'mz4250', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-dice-guardian-12345', likes: 28000, downloads: 540000, source: 'myminifactory' },
-        { title: 'Mind Flayer', creator: 'mz4250', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-mind-flayer-32001', likes: 25000, downloads: 480000, source: 'myminifactory' },
-        { title: 'Articulated Knight', creator: 'Printed Obsession', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-articulated-knight-56789', likes: 22000, downloads: 420000, source: 'myminifactory' },
-        { title: 'Baby Yoda', creator: 'Fotis Mint', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-baby-yoda-117365', likes: 20000, downloads: 380000, source: 'myminifactory' },
-        { title: 'Greek Statue Collection', creator: 'Scan The World', thumbnail: '', url: 'https://www.myminifactory.com/users/Scan%20The%20World', likes: 18000, downloads: 350000, source: 'myminifactory' },
-        { title: 'Terrain Set', creator: 'Printable Scenery', thumbnail: '', url: 'https://www.myminifactory.com/users/Printable%20Scenery', likes: 16000, downloads: 310000, source: 'myminifactory' },
-        { title: 'Beholder', creator: 'mz4250', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-beholder-28947', likes: 15000, downloads: 290000, source: 'myminifactory' },
-        { title: 'Dragon Bust', creator: 'Fotis Mint', thumbnail: '', url: 'https://www.myminifactory.com/object/3d-print-dragon-bust-100770', likes: 14000, downloads: 270000, source: 'myminifactory' }
-    ]
 };
 
 async function fetchPopularThingiverse(limit = 10) {
@@ -633,12 +497,6 @@ async function fetchPopularThangs(limit = 10) {
     return fallbackPopularModels.thangs.slice(0, limit);
 }
 
-async function fetchPopularMyMiniFactory(limit = 10) {
-    // MyMiniFactory has Cloudflare protection, use fallback data
-    console.log('MyMiniFactory: Using fallback data (Cloudflare protected)');
-    return fallbackPopularModels.myminifactory.slice(0, limit);
-}
-
 async function fetchPopularCrealityCloud(limit = 10) {
     try {
         const response = await safeFetch('https://www.crealitycloud.com/api/cxy/v3/model/listTrend', {
@@ -700,57 +558,6 @@ async function fetchPopularCrealityCloud(limit = 10) {
     }
 }
 
-async function fetchPopularYouMagine(limit = 10) {
-    try {
-        // Scrape main designs page (shows featured/recent without query)
-        // Use youmagine.com without www (www redirects)
-        const url = 'https://youmagine.com/designs';
-        const response = await safeFetch(url, { redirect: 'follow' });
-        const html = await response.text();
-        const $ = cheerio.load(html);
-
-        const results = [];
-        const seen = new Set();
-
-        // Find all model card images (they have the title in alt attribute)
-        $('img.object-cover[alt]').each((i, el) => {
-            if (results.length >= limit) return false;
-
-            const $img = $(el);
-            const alt = $img.attr('alt') || '';
-            const src = $img.attr('src') || '';
-
-            // Skip small images (avatars, icons) - model images have w-full h-full
-            if (!$img.hasClass('w-full') || !src || alt === 'YouMagine') return;
-
-            // Find the parent link
-            const $link = $img.closest('a[href*="/designs/"]');
-            const href = $link.attr('href');
-
-            if (href && !href.endsWith('/designs/') && !seen.has(href)) {
-                seen.add(href);
-                const thumbnail = src.startsWith('http') ? src : `https://youmagine.com${src}`;
-                const modelUrl = href.startsWith('http') ? href : `https://youmagine.com${href}`;
-
-                results.push({
-                    title: alt || 'Untitled',
-                    creator: 'Unknown',
-                    thumbnail,
-                    url: modelUrl,
-                    likes: 0,
-                    downloads: 0,
-                    source: 'youmagine'
-                });
-            }
-        });
-
-        return results;
-    } catch (error) {
-        console.error('YouMagine popular fetch error:', error.message);
-        return [];
-    }
-}
-
 // ==================== API ROUTES ====================
 
 // Image proxy - fetches images server-side to bypass hotlink protection
@@ -785,8 +592,6 @@ app.get('/api/image', async (req, res) => {
             referer = 'https://www.thingiverse.com/';
         } else if (imageUrl.includes('thangs.com')) {
             referer = 'https://thangs.com/';
-        } else if (imageUrl.includes('myminifactory.com')) {
-            referer = 'https://www.myminifactory.com/';
         } else if (imageUrl.includes('creality.com')) {
             referer = 'https://www.crealitycloud.com/';
         }
@@ -841,7 +646,8 @@ app.get('/api/search', async (req, res) => {
         return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
-    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'youmagine', 'myminifactory', 'crealitycloud'];
+    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'crealitycloud'];
+
     const searchLimit = Math.min(parseInt(limit) || 10, 20);
     const searchPage = Math.max(parseInt(page) || 1, 1);
 
@@ -849,8 +655,6 @@ app.get('/api/search', async (req, res) => {
         thingiverse: searchThingiverse,
         printables: searchPrintables,
         thangs: searchThangs,
-        youmagine: searchYouMagine,
-        myminifactory: searchMyMiniFactory,
         crealitycloud: searchCrealityCloud
     };
 
@@ -901,8 +705,6 @@ app.get('/api/search/:site', async (req, res) => {
         thingiverse: searchThingiverse,
         printables: searchPrintables,
         thangs: searchThangs,
-        youmagine: searchYouMagine,
-        myminifactory: searchMyMiniFactory,
         crealitycloud: searchCrealityCloud
     };
 
@@ -924,7 +726,7 @@ app.get('/api/search/:site', async (req, res) => {
 // Get popular models (dynamically fetched)
 app.get('/api/popular', async (req, res) => {
     const { sites: siteParam, limit = 10 } = req.query;
-    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'youmagine', 'myminifactory', 'crealitycloud'];
+    const enabledSites = siteParam ? siteParam.split(',') : ['thingiverse', 'printables', 'thangs', 'crealitycloud'];
     const searchLimit = Math.min(parseInt(limit) || 10, 20);
 
     // Check cache
@@ -940,8 +742,6 @@ app.get('/api/popular', async (req, res) => {
         thingiverse: fetchPopularThingiverse,
         printables: fetchPopularPrintables,
         thangs: fetchPopularThangs,
-        youmagine: fetchPopularYouMagine,
-        myminifactory: fetchPopularMyMiniFactory,
         crealitycloud: fetchPopularCrealityCloud
     };
 
@@ -984,8 +784,6 @@ app.get('/api/search-urls', (req, res) => {
         thingiverse: `https://www.thingiverse.com/search?q=${encodeURIComponent(q)}&type=things&sort=popular`,
         printables: `https://www.printables.com/search/models?q=${encodeURIComponent(q)}`,
         thangs: `https://thangs.com/search/${encodeURIComponent(q)}?scope=all`,
-        youmagine: `https://www.youmagine.com/designs?q=${encodeURIComponent(q)}`,
-        myminifactory: `https://www.myminifactory.com/search/?query=${encodeURIComponent(q)}`,
         crealitycloud: `https://www.crealitycloud.com/search/${encodeURIComponent(q)}`
     };
 
